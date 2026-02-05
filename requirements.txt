@@ -13,3 +13,5 @@ gTTS
 pydub
 chromadb
 sentence-transformers
+google.generativeai
+gunicorn
