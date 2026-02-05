@@ -1,67 +1,39 @@
-# ==========================================
-# STAGE 1: Builder
-# ==========================================
-FROM python:3.11-slim-bookworm as builder
-
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
-# 1. Install build tools (gcc) AND dependency headers (unixodbc-dev)
+# 1. Install System Dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
     g++ \
+    unixodbc \
     unixodbc-dev \
     libc-dev \
-    libffi-dev && \
+    libffi-dev \
+    ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
+# 2. Setup Venv
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# 3. Install Python Dependencies
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-
-# ==========================================
-# STAGE 1: Runtime
-# ==========================================
-FROM python:3.11-alpine as runtime
-
-WORKDIR /app
-
-# 3. Install RUNTIME libraries only (no gcc needed here)
-# - unixodbc: for pyodbc execution
-# - ffmpeg: for pydub audio processing
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    unixodbc \
-    ffmpeg \
-    groupadd \
-    libpq5 && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-COPY --from=builder /opt/venv /opt/venv
-
-ENV PATH="/opt/venv/bin:$PATH"
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
+# 4. Copy the actual application code
 COPY . .
 
-# (Optional) Download textblob corpora if you haven't done it in code
-# RUN python -m textblob.download_corpora
-
+# 5. Permission Setup
+RUN groupadd -r appuser && useradd -r -g appuser appuser
 RUN chown -R appuser:appuser /app
+
 USER appuser
 
 EXPOSE 3000
-# The standard production formula for Gunicorn workers is number of cores + 1
+
 CMD ["gunicorn", \
      "--bind", "0.0.0.0:3000", \
      "--workers", "3", \
