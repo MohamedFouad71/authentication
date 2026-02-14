@@ -21,8 +21,8 @@ from gtts import gTTS
 from pydub import AudioSegment
 
 # مكتبات الذاكرة
-# import chromadb
-# from sentence_transformers import SentenceTransformer
+ import chromadb
+ from sentence_transformers import SentenceTransformer
 
 chat_bp = Blueprint('chat', __name__)
 
